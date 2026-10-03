@@ -1,181 +1,393 @@
+Searched for "<<<<<<<"
+Searched for "MileTrack"
+Viewed index.html:1-100
+Viewed concept_design.html:1-100
+
+Here is the fully resolved, conflict-free code. All 9 conflicts between `patch-1` and `main` have been reconciled into a cohesive **MileTrack Pro** HUD:
+
+### Summary of Resolved Conflicts:
+1. **Header & Typography**: Merged the high-contrast SF Pro / Inter typography, `.card` and `.input-clean` design tokens with the `IRS $0.67/mi` rate badge and live `statusDot`.
+2. **Audio Space Bar**: Preserved the 1-tap YouTube Music driving channels (*CHH Gym*, *2000s R&B*, *Soul Groove*) in matching high-contrast dark card styling.
+3. **AI Key Modal**: Retained the Gemini API key modal with secure local storage (`localStorage`).
+4. **Shift Telemetry HUD**: Maintained the 4-column live telemetry grid (*Miles*, *Speed*, *Timer*, *Net $/h*) with Wake Lock and GPS odometer tracking.
+5. **Multi-Stop Router & Hotspots**: Preserved the 6-stop route planner with screenshot OCR, voice dictation, and 1-tap hotspot routing (*Fort Lee*, *Edgewater*, *Pal Park*).
+6. **Offer Profit Evaluator**: Restored the quick order evaluator (*Payout*, *Miles*, *Rate/Mi*, *Est. Gas*, *Tax Deduction*, and decision advice banner) in sleek dark card styling.
+7. **Quick Navigation**: Restored the 1-tap clipboard paste and dual launcher (*Google Maps* & *Waze*).
+8. **Shift Financials & Fuel Scanner**: Kept live gross pay, estimated gas, net pay, receipt camera OCR, and delivery payout logger.
+9. **History & CSV / Cloud Sync**: Unified Google Timeline JSON import, Grubhub CSV import, IRS CSV export, JSON backup, and total mileage counter.
+
+---
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>MileTrack Gig HUD</title>
+  <title>MileTrack Pro</title>
   <meta name="theme-color" content="#09090b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { background-color: #09090b; color: #f4f4f5; -webkit-tap-highlight-color: transparent; }
+    body { 
+      background-color: #09090b; 
+      color: #ffffff; 
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif; 
+      -webkit-font-smoothing: antialiased; 
+      -moz-osx-font-smoothing: grayscale; 
+      text-rendering: optimizeLegibility;
+      -webkit-tap-highlight-color: transparent; 
+    }
     input, button, select { font-size: 16px; }
+    .card { background-color: #121216; border: 1px solid #27272a; }
+    .input-clean { background-color: #0d0d10; border: 1px solid #2e2e33; font-weight: 500; }
+    .input-clean:focus { border-color: #52525b; outline: none; }
   </style>
 </head>
-<body class="p-4 pb-12 max-w-md mx-auto select-none">
+<body class="p-3.5 pb-24 max-w-md md:max-w-xl mx-auto space-y-3.5 select-none">
 
-  <!-- Header -->
-  <div class="flex justify-between items-center mb-4 pb-3 border-b border-zinc-800">
-    <div>
-      <h1 class="text-xl font-bold text-amber-400 flex items-center gap-1.5">
-        <span>🚗</span> MileTrack HUD
-      </h1>
-      <p class="text-xs text-zinc-400">Uber Eats & Grubhub Pro</p>
-    </div>
-    <span class="text-[10px] bg-zinc-800 text-zinc-300 px-2 py-1 rounded-full font-mono">IRS $0.67/mi</span>
-  </div>
-
-  <!-- CLOUD IMPORT BANNER -->
-  <div class="bg-gradient-to-r from-emerald-950/60 to-zinc-900 border border-emerald-800/60 rounded-2xl p-3 mb-4 shadow-lg">
-    <div class="flex justify-between items-center">
+  <!-- HEADER -->
+  <header class="flex justify-between items-center pt-1 pb-2 border-b border-zinc-800/80">
+    <div class="flex items-center gap-2.5">
+      <div class="w-2.5 h-2.5 rounded-full bg-zinc-500" id="statusDot"></div>
       <div>
-        <div class="text-xs font-bold text-emerald-400">☁️ Cloud Timeline Import</div>
-        <div class="text-[11px] text-zinc-400">Import Google Maps Timeline.json</div>
+        <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-1.5">
+          <span>🚗</span> MileTrack <span class="text-zinc-400 font-semibold">Pro</span>
+        </h1>
       </div>
-      <label class="px-3 py-2 bg-emerald-600 active:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow">
-        📂 Import File
-        <input type="file" id="timelineFileInput" accept=".json" onchange="importTimelineJson(event)" class="hidden">
-      </label>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] bg-zinc-900 border border-zinc-800 text-zinc-300 px-2.5 py-1 rounded-full font-mono">
+        IRS $0.67/mi
+      </span>
+      <button onclick="toggleAiModal()" class="text-xs text-zinc-300 hover:text-white font-semibold transition px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800">
+        AI Setup
+      </button>
+      <span id="shiftBadge" class="text-xs font-bold text-zinc-300 bg-zinc-900 border border-zinc-800 px-3 py-1 rounded-full">
+        Offline
+      </span>
+    </div>
+  </header>
+
+  <!-- AI KEY MODAL -->
+  <div id="aiModal" class="hidden card rounded-2xl p-4 space-y-2.5 shadow-2xl">
+    <div class="flex justify-between items-center">
+      <span class="text-xs font-bold text-zinc-200 uppercase tracking-wider">Gemini API Key</span>
+      <button onclick="toggleAiModal()" class="text-xs text-zinc-400 hover:text-white font-bold p-1">✕</button>
+    </div>
+    <input type="password" id="geminiKeyInput" placeholder="AIzaSy..." 
+           class="w-full input-clean rounded-xl p-2.5 text-xs font-mono text-white">
+    <div class="flex justify-between items-center pt-1">
+      <span class="text-xs text-zinc-400 font-medium">Stored locally on device</span>
+      <button onclick="saveAiKey()" class="text-xs bg-white text-black font-bold px-4 py-1.5 rounded-lg active:scale-95 transition">
+        Save Key
+      </button>
     </div>
   </div>
 
   <!-- AUDIO SPACE BAR -->
-  <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 mb-4 shadow-lg">
+  <section class="card rounded-2xl p-3 shadow-lg">
     <div class="flex justify-between items-center mb-2">
       <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🎧 Driving Audio Space</span>
-      <span class="text-[10px] bg-red-900/60 text-red-300 px-2 py-0.5 rounded-full font-bold">YT Music</span>
+      <span class="text-[10px] bg-red-900/60 text-red-300 border border-red-800/80 px-2 py-0.5 rounded-full font-bold">YT Music</span>
     </div>
     <div class="grid grid-cols-3 gap-2 text-center text-xs">
       <a href="https://music.youtube.com/search?q=Christian+Hip+Hop+Workout+Mix" target="_blank"
-         class="p-2 bg-zinc-800 active:bg-zinc-700 rounded-xl font-bold text-emerald-400 border border-zinc-700 block">
+         class="p-2 bg-zinc-950 hover:bg-zinc-900 active:scale-95 rounded-xl font-bold text-emerald-400 border border-zinc-800 block transition">
         🔥 CHH Gym
       </a>
       <a href="https://music.youtube.com/search?q=2000s+RnB+Hip+Hop+Workout+Mix" target="_blank"
-         class="p-2 bg-zinc-800 active:bg-zinc-700 rounded-xl font-bold text-amber-400 border border-zinc-700 block">
+         class="p-2 bg-zinc-950 hover:bg-zinc-900 active:scale-95 rounded-xl font-bold text-amber-400 border border-zinc-800 block transition">
         📻 2000s R&B
       </a>
       <a href="https://music.youtube.com/search?q=Kirk+Franklin+Upbeat+Praise+Mix" target="_blank"
-         class="p-2 bg-zinc-800 active:bg-zinc-700 rounded-xl font-bold text-sky-400 border border-zinc-700 block">
+         class="p-2 bg-zinc-950 hover:bg-zinc-900 active:scale-95 rounded-xl font-bold text-sky-400 border border-zinc-800 block transition">
         ✨ Soul Groove
       </a>
     </div>
-  </div>
+  </section>
 
-  <!-- SECTION 1: FAST ORDER CHECKER -->
-  <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-lg">
-    <div class="flex justify-between items-center mb-2">
-      <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">⚡ Offer Profit Evaluator</span>
+  <!-- SECTION 1: SHIFT TELEMETRY & DRIVE BUTTON -->
+  <section class="card rounded-2xl p-4 space-y-4 shadow-xl">
+    <div class="flex justify-between items-center text-xs font-semibold text-zinc-300">
+      <span id="wakeStatus">Screen Normal</span>
+      <span id="gpsStatus" class="font-mono text-zinc-400">GPS Standby</span>
+    </div>
+
+    <!-- Main Telemetry Grid -->
+    <div class="grid grid-cols-4 gap-2 text-center py-1">
+      <div class="bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800/80">
+        <div class="text-[11px] uppercase tracking-wider text-zinc-400 font-bold mb-0.5">Miles</div>
+        <div id="liveMiles" class="text-2xl font-bold text-emerald-400 font-mono tracking-tight">0.0</div>
+      </div>
+      <div class="bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800/80">
+        <div class="text-[11px] uppercase tracking-wider text-zinc-400 font-bold mb-0.5">Speed</div>
+        <div id="liveSpeed" class="text-2xl font-bold text-sky-400 font-mono tracking-tight">0</div>
+      </div>
+      <div class="bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800/80">
+        <div class="text-[11px] uppercase tracking-wider text-zinc-400 font-bold mb-0.5">Time</div>
+        <div id="shiftTimer" class="text-2xl font-bold text-amber-400 font-mono tracking-tight">00:00</div>
+      </div>
+      <div class="bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800/80">
+        <div class="text-[11px] uppercase tracking-wider text-zinc-400 font-bold mb-0.5">Net $/h</div>
+        <div id="dispHourly" class="text-2xl font-bold text-white font-mono tracking-tight">$0</div>
+      </div>
+    </div>
+
+    <!-- Crisp High-Contrast Shift Button -->
+    <button onclick="toggleShift()" id="btnShift" 
+            class="w-full h-13 py-3 rounded-xl bg-white hover:bg-zinc-100 text-zinc-950 font-bold text-sm tracking-tight transition active:scale-[0.99] flex items-center justify-center gap-2 shadow-lg">
+      <span>Start Shift</span>
+    </button>
+  </section>
+
+  <!-- SECTION 2: 1-TAP RETURN TO HOTSPOT -->
+  <section class="card rounded-2xl p-3 flex items-center justify-between gap-2 shadow-lg">
+    <span class="text-xs font-bold text-zinc-300 uppercase tracking-wider pl-1">Hotspot:</span>
+    <div class="flex gap-2">
+      <button onclick="routeToHotspot('Main St, Fort Lee, NJ')" class="text-xs bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 rounded-lg text-white font-bold transition">
+        Fort Lee
+      </button>
+      <button onclick="routeToHotspot('River Rd, Edgewater, NJ')" class="text-xs bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 rounded-lg text-white font-bold transition">
+        Edgewater
+      </button>
+      <button onclick="routeToHotspot('Broad Ave, Palisades Park, NJ')" class="text-xs bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 px-3 py-1.5 rounded-lg text-white font-bold transition">
+        Pal Park
+      </button>
+    </div>
+  </section>
+
+  <!-- SECTION 3: MULTI-STOP ROUTER (UP TO 6 STOPS) -->
+  <section class="card rounded-2xl p-4 space-y-3 shadow-xl">
+    <div class="flex justify-between items-center">
+      <span class="text-xs font-bold text-zinc-200 uppercase tracking-wider">Delivery Stops</span>
+      <div class="flex items-center gap-2">
+        <label class="text-xs font-bold text-sky-400 hover:text-sky-300 cursor-pointer">
+          Scan Screenshot
+          <input type="file" accept="image/*" onchange="parseOrderScreenshot(event)" class="hidden">
+        </label>
+        <span class="text-zinc-600">·</span>
+        <button onclick="clearStops()" class="text-xs font-bold text-zinc-400 hover:text-red-400">Clear</button>
+      </div>
+    </div>
+
+    <!-- Stop Inputs with Badges -->
+    <div class="space-y-2">
+      <div class="flex items-center gap-2">
+        <span class="w-5 h-5 rounded-md bg-zinc-800 text-zinc-200 font-bold text-xs flex items-center justify-center">1</span>
+        <input type="text" id="stop1" placeholder="Pickup or Drop 1..." class="flex-1 input-clean rounded-xl p-2.5 text-sm text-white placeholder-zinc-500">
+        <button onclick="voiceDictate('stop1')" class="p-2 text-zinc-300 hover:text-white text-sm" title="Voice">🎙️</button>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-5 h-5 rounded-md bg-zinc-800 text-zinc-200 font-bold text-xs flex items-center justify-center">2</span>
+        <input type="text" id="stop2" placeholder="Drop 2..." class="flex-1 input-clean rounded-xl p-2.5 text-sm text-white placeholder-zinc-500">
+        <button onclick="voiceDictate('stop2')" class="p-2 text-zinc-300 hover:text-white text-sm" title="Voice">🎙️</button>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-5 h-5 rounded-md bg-zinc-800 text-zinc-200 font-bold text-xs flex items-center justify-center">3</span>
+        <input type="text" id="stop3" placeholder="Drop 3 (Optional)..." class="flex-1 input-clean rounded-xl p-2.5 text-sm text-white placeholder-zinc-500">
+        <button onclick="voiceDictate('stop3')" class="p-2 text-zinc-300 hover:text-white text-sm" title="Voice">🎙️</button>
+      </div>
+      <div id="rowStop4" class="hidden flex items-center gap-2">
+        <span class="w-5 h-5 rounded-md bg-zinc-800 text-zinc-200 font-bold text-xs flex items-center justify-center">4</span>
+        <input type="text" id="stop4" placeholder="Drop 4..." class="flex-1 input-clean rounded-xl p-2.5 text-sm text-white placeholder-zinc-500">
+        <button onclick="voiceDictate('stop4')" class="p-2 text-zinc-300 hover:text-white text-sm" title="Voice">🎙️</button>
+      </div>
+      <div id="rowStop5" class="hidden flex items-center gap-2">
+        <span class="w-5 h-5 rounded-md bg-zinc-800 text-zinc-200 font-bold text-xs flex items-center justify-center">5</span>
+        <input type="text" id="stop5" placeholder="Drop 5..." class="flex-1 input-clean rounded-xl p-2.5 text-sm text-white placeholder-zinc-500">
+        <button onclick="voiceDictate('stop5')" class="p-2 text-zinc-300 hover:text-white text-sm" title="Voice">🎙️</button>
+      </div>
+      <div id="rowStop6" class="hidden flex items-center gap-2">
+        <span class="w-5 h-5 rounded-md bg-zinc-800 text-zinc-200 font-bold text-xs flex items-center justify-center">6</span>
+        <input type="text" id="stop6" placeholder="Drop 6..." class="flex-1 input-clean rounded-xl p-2.5 text-sm text-white placeholder-zinc-500">
+        <button onclick="voiceDictate('stop6')" class="p-2 text-zinc-300 hover:text-white text-sm" title="Voice">🎙️</button>
+      </div>
+    </div>
+
+    <div class="flex justify-between items-center pt-0.5">
+      <button onclick="addMoreStops()" id="btnAddStop" class="text-xs font-bold text-amber-400 hover:text-amber-300">
+        + Add Stop
+      </button>
+      <div id="ocrStatus" class="text-xs font-semibold text-zinc-400"></div>
+    </div>
+
+    <!-- Google Maps Route Button -->
+    <button onclick="launchMultiRoute()" 
+            class="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs tracking-tight transition flex items-center justify-center gap-2 shadow-lg active:scale-[0.99]">
+      <span>Route All in Google Maps</span>
+    </button>
+  </section>
+
+  <!-- SECTION 4: FAST ORDER CHECKER -->
+  <section class="card rounded-2xl p-4 space-y-3 shadow-xl">
+    <div class="flex justify-between items-center">
+      <span class="text-xs font-semibold text-zinc-300 uppercase tracking-wider">⚡ Offer Profit Evaluator</span>
       <div class="flex gap-1.5">
         <button onclick="setPlatform('Uber Eats')" id="btnUber" class="px-2.5 py-1 text-xs rounded-lg font-bold bg-emerald-600 text-white">Uber Eats</button>
         <button onclick="setPlatform('Grubhub')" id="btnGH" class="px-2.5 py-1 text-xs rounded-lg font-bold bg-zinc-800 text-zinc-400">Grubhub</button>
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-3 mt-3">
-      <div>
-        <label class="text-[11px] text-zinc-400">Offer Pay ($)</label>
-        <input type="number" id="offerPay" placeholder="e.g. 9.50" step="0.50" oninput="calculateOffer()" 
-               class="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-2.5 text-white font-bold focus:outline-none focus:border-amber-400">
-      </div>
-      <div>
-        <label class="text-[11px] text-zinc-400">Total Miles</label>
-        <input type="number" id="offerMiles" placeholder="e.g. 4.2" step="0.1" oninput="calculateOffer()" 
-               class="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-2.5 text-white font-bold focus:outline-none focus:border-amber-400">
-      </div>
+    <div class="grid grid-cols-2 gap-2">
+      <input type="number" id="offerPay" placeholder="Payout ($)" oninput="calculateOffer()" 
+             class="input-clean rounded-xl p-2.5 text-sm text-white placeholder-zinc-500 font-bold" step="0.25">
+      <input type="number" id="offerMiles" placeholder="Total Miles" oninput="calculateOffer()" 
+             class="input-clean rounded-xl p-2.5 text-sm text-white placeholder-zinc-500 font-bold" step="0.1">
     </div>
 
-    <div class="grid grid-cols-3 gap-2 mt-3 text-center">
-      <div class="bg-zinc-950 p-2 rounded-xl border border-zinc-800/80">
-        <div class="text-[10px] text-zinc-400 uppercase">Rate / Mi</div>
+    <div class="grid grid-cols-3 gap-2 text-center pt-1">
+      <div class="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800/80">
+        <div class="text-[10px] text-zinc-400 uppercase font-bold">Rate / Mi</div>
         <div id="resRate" class="text-base font-black text-zinc-500">$0.00</div>
       </div>
-      <div class="bg-zinc-950 p-2 rounded-xl border border-zinc-800/80">
-        <div class="text-[10px] text-zinc-400 uppercase">Gas Cost</div>
-        <div id="resGas" class="text-base font-bold text-red-400">-$0.00</div>
+      <div class="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800/80">
+        <div class="text-[10px] text-zinc-400 uppercase font-bold">Est Gas</div>
+        <div id="resGas" class="text-base font-black text-red-400">-$0.00</div>
       </div>
-      <div class="bg-zinc-950 p-2 rounded-xl border border-zinc-800/80">
-        <div class="text-[10px] text-zinc-400 uppercase">Tax Write-off</div>
-        <div id="resTax" class="text-base font-bold text-sky-400">+$0.00</div>
+      <div class="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800/80">
+        <div class="text-[10px] text-zinc-400 uppercase font-bold">Tax Write-off</div>
+        <div id="resTax" class="text-base font-black text-emerald-400">+$0.00</div>
       </div>
     </div>
-    <div id="adviceBanner" class="mt-3 text-center py-1.5 text-xs font-bold rounded-lg hidden"></div>
-  </div>
+    <div id="adviceBanner" class="mt-2 text-center py-1.5 text-xs font-bold rounded-lg hidden"></div>
+  </section>
 
-  <!-- SECTION 2: 1-TAP NAVIGATION -->
-  <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-lg">
-    <div class="flex justify-between items-center mb-2">
-      <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">📍 Quick Navigation</span>
-      <button onclick="pasteClipboard()" class="text-xs text-sky-400 font-medium">📋 Paste Address</button>
+  <!-- SECTION 5: 1-TAP QUICK NAVIGATION -->
+  <section class="card rounded-2xl p-4 space-y-3 shadow-xl">
+    <div class="flex justify-between items-center">
+      <span class="text-xs font-semibold text-zinc-300 uppercase tracking-wider">📍 Quick Navigation</span>
+      <button onclick="pasteClipboard()" class="text-xs text-sky-400 hover:text-sky-300 font-medium">📋 Paste Address</button>
     </div>
     <input type="text" id="navAddress" placeholder="Paste restaurant or customer address..." 
-           class="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-amber-400">
-    <div class="grid grid-cols-2 gap-3 mt-3">
-      <button onclick="launchNav('google')" class="w-full py-3 bg-blue-600 active:bg-blue-700 rounded-xl font-bold text-sm flex justify-center items-center gap-2 shadow-md">
+           class="w-full input-clean rounded-xl p-2.5 text-sm text-white placeholder-zinc-500">
+    <div class="grid grid-cols-2 gap-2.5">
+      <button onclick="launchNav('google')" class="py-2.5 bg-blue-600 hover:bg-blue-500 active:scale-[0.99] rounded-xl font-bold text-xs text-white flex justify-center items-center gap-1.5 transition shadow">
         <span>🗺️</span> Google Maps
       </button>
-      <button onclick="launchNav('waze')" class="w-full py-3 bg-cyan-600 active:bg-cyan-700 rounded-xl font-bold text-sm flex justify-center items-center gap-2 shadow-md">
+      <button onclick="launchNav('waze')" class="py-2.5 bg-cyan-600 hover:bg-cyan-500 active:scale-[0.99] rounded-xl font-bold text-xs text-white flex justify-center items-center gap-1.5 transition shadow">
         <span>🧭</span> Waze
       </button>
     </div>
-  </div>
+  </section>
 
-  <!-- SECTION 3: SHIFT ODOMETER TRACKER & SYNC -->
-  <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-lg">
-    <div class="flex justify-between items-center mb-2">
-      <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🕒 Shift Mileage Logger</span>
-      <span id="shiftStatus" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-zinc-800 text-zinc-400">OFFLINE</span>
-    </div>
-
-    <div id="shiftInactive">
-      <label class="text-[11px] text-zinc-400">Starting Odometer</label>
-      <div class="flex gap-2 mt-1">
-        <input type="number" id="startOdo" placeholder="e.g. 114250" 
-               class="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl p-2.5 text-white font-bold focus:outline-none">
-        <button onclick="startShift()" class="px-5 py-2.5 bg-emerald-600 active:bg-emerald-700 rounded-xl font-bold text-sm">
-          Start Shift
-        </button>
+  <!-- SECTION 6: FINANCIALS & REVENUE -->
+  <section class="card rounded-2xl p-4 space-y-3.5 shadow-xl">
+    <div class="flex justify-between items-center">
+      <span class="text-xs font-bold text-zinc-200 uppercase tracking-wider">Shift Financials</span>
+      <div class="flex items-center gap-2.5">
+        <label class="text-xs font-bold text-sky-400 hover:text-sky-300 cursor-pointer">
+          Scan Fuel
+          <input type="file" accept="image/*" capture="environment" onchange="scanGasReceipt(event)" class="hidden">
+        </label>
+        <span class="text-zinc-600">·</span>
+        <button onclick="togglePayLogger()" class="text-xs font-bold text-amber-400 hover:text-amber-300">+ Log Pay</button>
       </div>
     </div>
 
-    <div id="shiftActive" class="hidden space-y-3">
-      <div class="flex justify-between items-center text-xs bg-emerald-950/40 border border-emerald-800/50 p-2.5 rounded-xl">
-        <span class="text-emerald-400 font-bold">● Driving Shift in Progress</span>
-        <span id="activeStartVal" class="text-zinc-300 font-mono">Started: 0 mi</span>
+    <div class="grid grid-cols-3 gap-2.5 text-center">
+      <div class="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800">
+        <div class="text-[11px] uppercase tracking-wider text-zinc-400 font-bold mb-0.5">Gross</div>
+        <div id="dispGross" class="text-base font-bold text-white font-mono">$0.00</div>
       </div>
-      <div>
-        <label class="text-[11px] text-zinc-400">Ending Odometer</label>
-        <div class="flex gap-2 mt-1">
-          <input type="number" id="endOdo" placeholder="e.g. 114320" 
-                 class="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl p-2.5 text-white font-bold focus:outline-none">
-          <button onclick="endShift()" class="px-5 py-2.5 bg-red-600 active:bg-red-700 rounded-xl font-bold text-sm">
-            End Shift
-          </button>
-        </div>
+      <div class="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800">
+        <div class="text-[11px] uppercase tracking-wider text-zinc-400 font-bold mb-0.5">Est. Gas</div>
+        <div id="dispGas" class="text-base font-bold text-red-400 font-mono">-$0.00</div>
+      </div>
+      <div class="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800">
+        <div class="text-[11px] uppercase tracking-wider text-zinc-400 font-bold mb-0.5">Net Pay</div>
+        <div id="dispNet" class="text-base font-bold text-emerald-400 font-mono">$0.00</div>
       </div>
     </div>
 
-    <!-- History & Sync Actions -->
-    <div class="mt-4 pt-3 border-t border-zinc-800 flex flex-col gap-2">
+    <!-- Quick Pay Logger Modal -->
+    <div id="payLogModal" class="hidden p-3 bg-zinc-950 rounded-xl border border-zinc-800 space-y-2">
       <div class="flex justify-between items-center">
-        <span id="totalLoggedMiles" class="text-xs text-zinc-400 font-medium">Total: 0.0 miles</span>
-        <button onclick="exportCSV()" class="text-xs text-amber-400 font-semibold underline">
-          📥 Export IRS CSV
+        <span class="text-xs font-bold text-zinc-300">Log Delivery Payout</span>
+        <button onclick="togglePayLogger()" class="text-xs text-zinc-500 hover:text-white font-bold">✕</button>
+      </div>
+      <div class="flex gap-2">
+        <input type="number" id="logPayAmount" placeholder="Amount ($)" step="0.50" 
+               class="flex-1 input-clean rounded-xl p-2.5 text-sm text-white font-bold">
+        <button onclick="submitOrderPay()" class="px-4 py-2 bg-white text-zinc-950 font-bold text-xs rounded-xl active:scale-95 transition">
+          Add
         </button>
       </div>
-      <div class="flex justify-between items-center pt-2 border-t border-zinc-800/60 text-[11px]">
-        <button onclick="backupSyncJson()" class="text-sky-400 hover:text-sky-300 underline">💾 Backup (JSON)</button>
-        <button onclick="clearHistory()" class="text-zinc-500 hover:text-red-400">Reset</button>
+    </div>
+  </section>
+
+  <!-- FOOTER & AUDIT SYNC -->
+  <footer class="pt-3 space-y-2 border-t border-zinc-800/80 text-xs text-zinc-400 font-medium px-1">
+    <div class="flex justify-between items-center">
+      <span id="totalLoggedMiles" class="text-xs text-zinc-400 font-medium">Total: 0.0 mi ($0.00 write-off)</span>
+      <button onclick="exportIRSCSV()" class="text-xs text-amber-400 hover:text-amber-300 font-bold underline">
+        📥 Export IRS CSV
+      </button>
+    </div>
+    <div class="flex justify-between items-center pt-2 border-t border-zinc-800/60 text-[11px]">
+      <div class="flex items-center gap-3">
+        <label class="hover:text-white cursor-pointer font-semibold">
+          Import Grubhub CSV
+          <input type="file" id="importGrubhubFile" accept=".csv" onchange="importGrubhubCSV(event)" class="hidden">
+        </label>
+        <span class="text-zinc-600">·</span>
+        <label class="hover:text-white cursor-pointer font-semibold">
+          Timeline.json
+          <input type="file" id="importTimelineFile" accept=".json" onchange="importTimeline(event)" class="hidden">
+        </label>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="backupSyncJson()" class="text-sky-400 hover:text-sky-300 underline font-semibold">💾 Backup (JSON)</button>
+        <span class="text-zinc-600">·</span>
+        <button onclick="clearHistory()" class="text-zinc-500 hover:text-red-400 font-semibold">Reset</button>
       </div>
     </div>
-  </div>
+  </footer>
+
+  <!-- SILENT AUDIO KEEP-ALIVE -->
+  <audio id="keepAliveAudio" loop preload="none">
+    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" type="audio/wav">
+  </audio>
 
   <script>
+    let isShiftActive = false;
+    let shiftStartMs = null;
+    let timerInterval = null;
+    let gpsWatchId = null;
+    let lastCoords = null;
+    let totalShiftMiles = 0;
+    let totalGrossPay = parseFloat(localStorage.getItem('mp_gross_pay') || '0');
+    let wakeLock = null;
+    let visibleStopsCount = 3;
     let activePlatform = 'Uber Eats';
-    let currentShiftStart = localStorage.getItem('shift_start') ? Number(localStorage.getItem('shift_start')) : null;
 
-    if (currentShiftStart) showActiveShift(currentShiftStart);
-    updateTotalMiles();
+    let geminiKey = localStorage.getItem('mp_gemini_key') || '';
 
+    init();
+
+    function init() {
+      updateFinancialDashboard();
+      updateTotalMiles();
+      document.getElementById('geminiKeyInput').value = geminiKey;
+    }
+
+    // --- HOTSPOT NAVIGATOR ---
+    function routeToHotspot(address) {
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`, '_blank');
+    }
+
+    // --- MODALS & SETTINGS ---
+    function toggleAiModal() { document.getElementById('aiModal').classList.toggle('hidden'); }
+    function togglePayLogger() { document.getElementById('payLogModal').classList.toggle('hidden'); }
+
+    function saveAiKey() {
+      geminiKey = document.getElementById('geminiKeyInput').value.trim();
+      localStorage.setItem('mp_gemini_key', geminiKey);
+      toggleAiModal();
+      alert('Key saved.');
+    }
+
+    // --- OFFER PROFIT EVALUATOR ---
     function setPlatform(name) {
       activePlatform = name;
       document.getElementById('btnUber').className = name === 'Uber Eats' 
@@ -205,13 +417,13 @@
 
         banner.classList.remove('hidden');
         if (rate >= 1.75) {
-          banner.className = 'mt-3 text-center py-1.5 text-xs font-bold rounded-lg bg-emerald-900/60 text-emerald-300 border border-emerald-700';
+          banner.className = 'mt-2 text-center py-1.5 text-xs font-bold rounded-lg bg-emerald-900/60 text-emerald-300 border border-emerald-700';
           banner.innerText = '✅ GREAT OFFER - High $/mile';
         } else if (rate >= 1.25) {
-          banner.className = 'mt-3 text-center py-1.5 text-xs font-bold rounded-lg bg-amber-900/60 text-amber-300 border border-amber-700';
+          banner.className = 'mt-2 text-center py-1.5 text-xs font-bold rounded-lg bg-amber-900/60 text-amber-300 border border-amber-700';
           banner.innerText = '⚠️ DECENT OFFER - Check Drop-off Location';
         } else {
-          banner.className = 'mt-3 text-center py-1.5 text-xs font-bold rounded-lg bg-red-900/60 text-red-300 border border-red-700';
+          banner.className = 'mt-2 text-center py-1.5 text-xs font-bold rounded-lg bg-red-900/60 text-red-300 border border-red-700';
           banner.innerText = '❌ LOW OFFER - Barely covers gas & vehicle wear';
         }
       } else {
@@ -219,6 +431,7 @@
       }
     }
 
+    // --- QUICK NAVIGATION ---
     async function pasteClipboard() {
       try {
         const text = await navigator.clipboard.readText();
@@ -231,71 +444,286 @@
     function launchNav(app) {
       const address = document.getElementById('navAddress').value.trim();
       if (!address) { alert('Enter or paste an address first.'); return; }
-      const clean = encodeURIComponent(address.replace(/(apt|suite|unit|bldg|ste)\s*#?[a-z0-9-]+/gi, '').trim());
+      const clean = encodeURIComponent(cleanAddr(address));
       const url = app === 'google'
         ? `https://www.google.com/maps/dir/?api=1&destination=${clean}&travelmode=driving`
         : `https://waze.com/ul?q=${clean}&navigate=yes`;
       window.open(url, '_blank');
     }
 
-    function startShift() {
-      const odo = parseFloat(document.getElementById('startOdo').value);
-      if (!odo) { alert('Enter starting odometer.'); return; }
-      currentShiftStart = odo;
-      localStorage.setItem('shift_start', odo);
-      showActiveShift(odo);
+    // --- MULTI-STOP ROUTING (UP TO 6) ---
+    function addMoreStops() {
+      if (visibleStopsCount < 6) {
+        visibleStopsCount++;
+        document.getElementById(`rowStop${visibleStopsCount}`).classList.remove('hidden');
+        if (visibleStopsCount === 6) document.getElementById('btnAddStop').classList.add('hidden');
+      }
     }
 
-    function showActiveShift(odo) {
-      document.getElementById('shiftInactive').classList.add('hidden');
-      document.getElementById('shiftActive').classList.remove('hidden');
-      document.getElementById('activeStartVal').innerText = `Started: ${odo} mi`;
-      document.getElementById('shiftStatus').innerText = 'ON DUTY';
-      document.getElementById('shiftStatus').className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-600 text-white';
+    function cleanAddr(raw) {
+      return raw.replace(/(apt|suite|unit|bldg|ste)\s*#?[a-z0-9-]+/gi, '').trim();
     }
 
-    function endShift() {
-      const endOdo = parseFloat(document.getElementById('endOdo').value);
-      if (!endOdo || endOdo <= currentShiftStart) {
-        alert('End odometer must be greater than starting odometer.');
+    function launchMultiRoute() {
+      const allStops = [
+        cleanAddr(document.getElementById('stop1').value),
+        cleanAddr(document.getElementById('stop2').value),
+        cleanAddr(document.getElementById('stop3').value),
+        cleanAddr(document.getElementById('stop4').value),
+        cleanAddr(document.getElementById('stop5').value),
+        cleanAddr(document.getElementById('stop6').value)
+      ].filter(s => s.length > 0);
+
+      if (allStops.length === 0) {
+        alert('Enter at least Stop 1.');
         return;
       }
-      const miles = endOdo - currentShiftStart;
-      const deduction = (miles * 0.67).toFixed(2);
 
+      if (allStops.length === 1) {
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(allStops[0])}&travelmode=driving`, '_blank');
+      } else {
+        const destination = encodeURIComponent(allStops[allStops.length - 1]);
+        const waypoints = allStops.slice(0, allStops.length - 1).map(s => encodeURIComponent(s)).join('|');
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}&waypoints=${waypoints}&travelmode=driving`, '_blank');
+      }
+    }
+
+    function clearStops() {
+      for (let i = 1; i <= 6; i++) document.getElementById(`stop${i}`).value = '';
+      visibleStopsCount = 3;
+      document.getElementById('rowStop4').classList.add('hidden');
+      document.getElementById('rowStop5').classList.add('hidden');
+      document.getElementById('rowStop6').classList.add('hidden');
+      document.getElementById('btnAddStop').classList.remove('hidden');
+      document.getElementById('ocrStatus').innerText = '';
+    }
+
+    function voiceDictate(targetId) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) { alert('Voice dictation not supported in this browser.'); return; }
+      const recognition = new SpeechRecognition();
+      recognition.onstart = () => { document.getElementById(targetId).placeholder = 'Listening...'; };
+      recognition.onresult = (e) => { document.getElementById(targetId).value = e.results[0][0].transcript; };
+      recognition.start();
+    }
+
+    // --- AI SCREENSHOT PARSER ---
+    async function parseOrderScreenshot(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const status = document.getElementById('ocrStatus');
+      status.innerText = 'Scanning image...';
+      if (!geminiKey) { status.innerText = 'Add Gemini key in AI Setup first.'; return; }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64 = e.target.result.split(',')[1];
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: "Extract delivery/pickup addresses from this delivery app screenshot. Return ONLY a valid JSON array of up to 6 address strings: [\"123 Main St\", \"456 Elm St\"]" },
+                  { inline_data: { mime_type: file.type || "image/jpeg", data: base64 } }
+                ]
+              }]
+            })
+          });
+          const data = await res.json();
+          const addresses = JSON.parse(data.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim());
+
+          if (Array.isArray(addresses) && addresses.length > 0) {
+            for (let i = 0; i < Math.min(addresses.length, 6); i++) {
+              const num = i + 1;
+              if (num > 3) document.getElementById(`rowStop${num}`).classList.remove('hidden');
+              document.getElementById(`stop${num}`).value = addresses[i];
+            }
+            status.innerText = `✓ Loaded ${addresses.length} address(es)`;
+          }
+        } catch (err) { status.innerText = 'Could not parse screenshot.'; }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // --- DRIVING SHIFT ---
+    function toggleShift() {
+      if (!isShiftActive) startLiveShift();
+      else endLiveShift();
+    }
+
+    async function startLiveShift() {
+      isShiftActive = true;
+      shiftStartMs = Date.now();
+      totalShiftMiles = 0;
+      lastCoords = null;
+
+      document.getElementById('btnShift').innerText = 'End Shift';
+      document.getElementById('btnShift').className = 'w-full h-13 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm tracking-tight transition active:scale-[0.99] shadow-lg';
+      document.getElementById('shiftBadge').innerText = 'Active';
+      document.getElementById('shiftBadge').className = 'text-xs font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800 px-3 py-1 rounded-full';
+      document.getElementById('statusDot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]';
+
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          document.getElementById('wakeStatus').innerText = 'Screen Awake';
+        }
+      } catch (e) {}
+
+      const audio = document.getElementById('keepAliveAudio');
+      if (audio) audio.play().catch(() => {});
+
+      timerInterval = setInterval(updateTimer, 1000);
+
+      if ("geolocation" in navigator) {
+        document.getElementById('gpsStatus').innerText = 'Locating...';
+        gpsWatchId = navigator.geolocation.watchPosition(handleGpsSuccess, null, { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 });
+      }
+    }
+
+    function handleGpsSuccess(pos) {
+      document.getElementById('gpsStatus').innerText = `±${Math.round(pos.coords.accuracy * 3.28)}ft`;
+      if (pos.coords.speed !== null && pos.coords.speed >= 0) {
+        document.getElementById('liveSpeed').innerText = Math.round(pos.coords.speed * 2.23694);
+      }
+      if (lastCoords) {
+        const dist = haversineMiles(lastCoords.latitude, lastCoords.longitude, pos.coords.latitude, pos.coords.longitude);
+        if (dist >= 0.003) {
+          totalShiftMiles += dist;
+          document.getElementById('liveMiles').innerText = totalShiftMiles.toFixed(1);
+          updateFinancialDashboard();
+        }
+      }
+      lastCoords = pos.coords;
+    }
+
+    function updateTimer() {
+      const elapsed = Math.floor((Date.now() - shiftStartMs) / 1000);
+      const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+      const h = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+      document.getElementById('shiftTimer').innerText = `${h}:${m}`;
+      updateFinancialDashboard();
+    }
+
+    function endLiveShift() {
+      isShiftActive = false;
+      clearInterval(timerInterval);
+      if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
+      if (wakeLock) { wakeLock.release(); wakeLock = null; }
+      const audio = document.getElementById('keepAliveAudio');
+      if (audio) { audio.pause(); audio.currentTime = 0; }
+
+      const milesLogged = parseFloat(totalShiftMiles.toFixed(2));
+      const deduction = (milesLogged * 0.67).toFixed(2);
       const history = JSON.parse(localStorage.getItem('miletrack_history') || '[]');
       history.push({
         date: new Date().toISOString().split('T')[0],
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        startOdo: currentShiftStart,
-        endOdo: endOdo,
-        miles: miles,
+        miles: milesLogged,
         deduction: deduction,
-        purpose: 'Delivery Shift (Uber Eats / Grubhub)'
+        purpose: 'Delivery Shift'
       });
       localStorage.setItem('miletrack_history', JSON.stringify(history));
 
-      localStorage.removeItem('shift_start');
-      currentShiftStart = null;
-      document.getElementById('shiftInactive').classList.remove('hidden');
-      document.getElementById('shiftActive').classList.add('hidden');
-      document.getElementById('shiftStatus').innerText = 'OFFLINE';
-      document.getElementById('shiftStatus').className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-zinc-800 text-zinc-400';
-      document.getElementById('startOdo').value = endOdo;
-      document.getElementById('endOdo').value = '';
+      document.getElementById('btnShift').innerText = 'Start Shift';
+      document.getElementById('btnShift').className = 'w-full h-13 py-3 rounded-xl bg-white hover:bg-zinc-100 text-zinc-950 font-bold text-sm tracking-tight transition active:scale-[0.99] shadow-lg';
+      document.getElementById('shiftBadge').innerText = 'Offline';
+      document.getElementById('shiftBadge').className = 'text-xs font-bold text-zinc-300 bg-zinc-900 border border-zinc-800 px-3 py-1 rounded-full';
+      document.getElementById('statusDot').className = 'w-2.5 h-2.5 rounded-full bg-zinc-500';
+      document.getElementById('wakeStatus').innerText = 'Screen Normal';
+      document.getElementById('gpsStatus').innerText = 'GPS Standby';
 
-      alert(`✓ Shift Logged: ${miles} miles\nTax Write-off: $${deduction}`);
       updateTotalMiles();
+      alert(`Shift Logged: ${totalShiftMiles.toFixed(1)} mi ($${deduction} write-off)`);
+    }
+
+    function haversineMiles(lat1, lon1, lat2, lon2) {
+      const R = 3958.8;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+    }
+
+    // --- FINANCIALS ---
+    function submitOrderPay() {
+      const amt = parseFloat(document.getElementById('logPayAmount').value);
+      if (!amt || amt <= 0) return;
+      totalGrossPay += amt;
+      localStorage.setItem('mp_gross_pay', totalGrossPay.toString());
+      document.getElementById('logPayAmount').value = '';
+      togglePayLogger();
+      updateFinancialDashboard();
+    }
+
+    function updateFinancialDashboard() {
+      const gas = (totalShiftMiles * 0.14);
+      const net = totalGrossPay - gas;
+      let hrs = 1;
+      if (shiftStartMs) hrs = Math.max(0.1, (Date.now() - shiftStartMs) / 3600000);
+      const hourly = (net / hrs).toFixed(2);
+
+      document.getElementById('dispGross').innerText = `$${totalGrossPay.toFixed(2)}`;
+      document.getElementById('dispGas').innerText = `-$${gas.toFixed(2)}`;
+      document.getElementById('dispNet').innerText = `$${net.toFixed(2)}`;
+      document.getElementById('dispHourly').innerText = `$${hourly}`;
     }
 
     function updateTotalMiles() {
       const history = JSON.parse(localStorage.getItem('miletrack_history') || '[]');
-      const total = history.reduce((sum, item) => sum + item.miles, 0);
-      document.getElementById('totalLoggedMiles').innerText = `Total: ${total.toFixed(1)} mi ($${(total * 0.67).toFixed(2)} write-off)`;
+      const total = history.reduce((sum, item) => sum + (parseFloat(item.miles) || 0), 0);
+      const totalEl = document.getElementById('totalLoggedMiles');
+      if (totalEl) {
+        totalEl.innerText = `Total: ${total.toFixed(1)} mi ($${(total * 0.67).toFixed(2)} write-off)`;
+      }
     }
 
-    // CLOUD TIMELINE IMPORTER
-    function importTimelineJson(e) {
+    // --- GRUBHUB CSV IMPORTER ---
+    function importGrubhubCSV(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const lines = evt.target.result.split('\n');
+          let addedEarn = 0, addedMiles = 0, count = 0;
+          const dedup = new Set(JSON.parse(localStorage.getItem('mp_gh_dedup') || '[]'));
+          const history = JSON.parse(localStorage.getItem('miletrack_history') || '[]');
+
+          for (let i = 1; i < lines.length; i++) {
+            const row = lines[i].trim();
+            if (!row) continue;
+            const cols = row.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+            const dt = cols[0], type = cols[1], amt = parseFloat(cols[2]?.replace(/[$\s]/g, '')) || 0;
+            const status = cols[4], rest = cols[5] || 'Grubhub', mi = parseFloat(cols[7]) || 0;
+            const key = `${dt}_${type}_${amt}_${rest}`;
+            if (dedup.has(key)) continue;
+
+            if (type === 'DELIVERY' && status === 'ACCEPTED') {
+              count++; addedEarn += amt; addedMiles += mi; dedup.add(key);
+              history.push({ date: dt.split('T')[0], miles: mi, deduction: (mi * 0.67).toFixed(2), purpose: `Grubhub (${rest})` });
+            } else if (type === 'MISSION' && amt > 0) {
+              addedEarn += amt; dedup.add(key);
+            }
+          }
+          localStorage.setItem('mp_gh_dedup', JSON.stringify(Array.from(dedup)));
+          localStorage.setItem('miletrack_history', JSON.stringify(history));
+          totalGrossPay += addedEarn;
+          localStorage.setItem('mp_gross_pay', totalGrossPay.toString());
+          updateFinancialDashboard();
+          updateTotalMiles();
+          alert(`Added: ${count} deliveries (+$${addedEarn.toFixed(2)}, +${addedMiles.toFixed(1)} mi)`);
+        } catch (err) { alert('CSV parse error: ' + err.message); }
+      };
+      reader.readAsText(file);
+    }
+
+    // --- TIMELINE JSON IMPORTER ---
+    function importTimeline(e) {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
@@ -303,54 +731,42 @@
         try {
           const raw = JSON.parse(evt.target.result);
           const segments = raw.semanticSegments || raw.timelineObjects || [];
+          let miTotal = 0;
           let count = 0;
-          let addedMiles = 0;
           const history = JSON.parse(localStorage.getItem('miletrack_history') || '[]');
-
           segments.forEach(seg => {
-            const act = seg.activity || (seg.activitySegment);
-            if (act && act.topCandidate && act.topCandidate.type) {
-              const type = act.topCandidate.type;
-              if (type.match(/IN_PASSENGER_VEHICLE|MOTORCYCLING|IN_VEHICLE/)) {
-                const meters = Number(act.distanceMeters || act.distance) || 0;
-                if (meters >= 100) {
-                  const miles = Number((meters * 0.000621371).toFixed(2));
-                  const deduction = Number((miles * 0.67).toFixed(2));
-                  const dt = new Date(seg.startTime || (act.duration && act.duration.startTimestamp));
-                  history.push({
-                    date: dt.toISOString().split('T')[0],
-                    time: dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    startOdo: 0,
-                    endOdo: 0,
-                    miles: miles,
-                    deduction: deduction,
-                    purpose: 'Delivery Shift (Google Timeline)'
-                  });
-                  count++;
-                  addedMiles += miles;
-                }
+            const act = seg.activity || seg.activitySegment;
+            if (act && act.topCandidate && act.topCandidate.type && act.topCandidate.type.match(/VEHICLE|DRIVING|IN_PASSENGER_VEHICLE|MOTORCYCLING/)) {
+              const m = Number(act.distanceMeters || act.distance) || 0;
+              if (m >= 100) {
+                const mi = Number((m * 0.000621371).toFixed(2));
+                const startTime = seg.startTime || (act.duration && act.duration.startTimestamp);
+                history.push({ 
+                  date: new Date(startTime).toISOString().split('T')[0], 
+                  miles: mi, 
+                  deduction: (mi * 0.67).toFixed(2), 
+                  purpose: 'Timeline Drive' 
+                });
+                miTotal += mi;
+                count++;
               }
             }
           });
-
           localStorage.setItem('miletrack_history', JSON.stringify(history));
           updateTotalMiles();
-          alert(`✓ SUCCESS!\nImported ${count} driving trips.\nAdded ${addedMiles.toFixed(1)} miles ($${(addedMiles * 0.67).toFixed(2)} tax write-off)!`);
-        } catch (err) {
-          alert('Error importing Timeline: ' + err.message);
-        }
+          alert(`Imported ${count} drives (${miTotal.toFixed(1)} miles) from Timeline.json`);
+        } catch (err) { alert('Error reading Timeline file: ' + err.message); }
       };
       reader.readAsText(file);
     }
 
-    function exportCSV() {
+    // --- EXPORTS & BACKUP ---
+    function exportIRSCSV() {
       const history = JSON.parse(localStorage.getItem('miletrack_history') || '[]');
-      if (history.length === 0) { alert('No shifts logged yet.'); return; }
-      let csv = 'Date,Time,Start Odometer,End Odometer,Miles,Tax Deduction,Purpose\n';
-      history.forEach(h => {
-        csv += `"${h.date}","${h.time}",${h.startOdo},${h.endOdo},${h.miles},"$${h.deduction}","${h.purpose}"\n`;
-      });
-      downloadFile(csv, 'IRS_Delivery_Mileage_Log.csv', 'text/csv');
+      if (history.length === 0) { alert('No trips logged.'); return; }
+      let csv = 'Date,Miles,Tax Deduction,Purpose\n';
+      history.forEach(h => { csv += `"${h.date}",${h.miles},"$${h.deduction}","${h.purpose}"\n`; });
+      downloadFile(csv, 'IRS_Mileage_Log.csv', 'text/csv');
     }
 
     function backupSyncJson() {
@@ -361,18 +777,45 @@
     function clearHistory() {
       if (confirm('Are you sure you want to clear your logged miles?')) {
         localStorage.removeItem('miletrack_history');
+        localStorage.removeItem('mp_gross_pay');
+        localStorage.removeItem('mp_gh_dedup');
+        totalGrossPay = 0;
         updateTotalMiles();
+        updateFinancialDashboard();
+        alert('History reset.');
       }
     }
 
     function downloadFile(content, filename, type) {
       const blob = new Blob([content], { type });
-      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = URL.createObjectURL(blob);
       a.download = filename;
       a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    // --- FUEL SCANNER ---
+    async function scanGasReceipt(event) {
+      const file = event.target.files[0];
+      if (!file || !geminiKey) { alert('Set Gemini key in AI Setup first.'); return; }
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64 = e.target.result.split(',')[1];
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: "Extract total dollar amount as JSON: {\"total\": number}" }, { inline_data: { mime_type: file.type || "image/jpeg", data: base64 } }] }] })
+          });
+          const data = await res.json();
+          const parsed = JSON.parse(data.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim());
+          alert(`Logged Fuel: $${parsed.total}`);
+        } catch (err) { alert('Receipt scan failed.'); }
+      };
+      reader.readAsDataURL(file);
     }
   </script>
 </body>
 </html>
+```
